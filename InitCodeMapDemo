@@ -1,0 +1,105 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class InitCodeMapDemo {
+
+	public static void main(String[] args) {
+		String http = "http://sfz.yjbys.com/haoma/760.html";
+		BufferedReader in = null;
+		try {
+			URL url = new URL(http);
+			URLConnection connection = url.openConnection();
+			connection.setRequestProperty("Connection", "keep-alive");
+			connection.setRequestProperty("Accept",
+					"application/json, text/javascript, */*; q=0.01");
+			connection
+					.setRequestProperty(
+							"User-Agent",
+							"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.155 Safari/537.36");
+			connection.connect();
+
+			in = new BufferedReader(new InputStreamReader(
+					connection.getInputStream(), "GBK"));
+			StringBuffer sb = new StringBuffer();
+			String r = "";
+			while ((r = in.readLine()) != null) {
+				sb.append(r);
+			}
+			in.close();
+			handler(sb.toString());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void handler(String result) {
+		result = result.replaceAll("\\s+", " ");
+		try {
+			String regex = "(?i)<p>(.+?([0-9]{6})([^p]+)?)</p>";
+			Pattern p = Pattern.compile(regex);
+			Matcher m2 = p.matcher(result);
+			int sum = 0;
+			int province = 0;
+			int city = -1;
+			int districtF = -1;
+			int districtL = -1;
+			String pN = "";
+			String cN = "";
+			while (m2.find()) {
+				String code = m2.group(2);
+				int p2 = Integer.parseInt(code.substring(0, 2));
+				if (province == p2) {
+					int c2 = Integer.parseInt(code.substring(2, 4));
+					if (c2 == 0)
+						continue;
+					int d2 = Integer.parseInt(code.substring(4));
+					if (city != c2) {
+						if (city != -1) {
+							System.out.print("," + districtF + "," + districtL);
+							System.out.println("});//" + cN);
+						} else
+							System.out.println("ms = new HashMap<>();");
+						districtF = -1;
+						System.out.print("ms.put(" + c2 + ",new int[]{0");
+						city = c2;
+						cN = m2.group(3);
+						continue;
+					} else {
+						if (districtF == -1)
+							districtF = districtL = d2;
+						if (d2 - districtL > 1) {
+							System.out.print("," + districtF + "," + districtL);
+							districtF = districtL = d2;
+							continue;
+						} else
+							districtL = d2;
+					}
+				} else {
+					if (province != 0) {
+						if (city != -1) {
+							System.out.print("," + districtF + "," + districtL);
+							System.out.println("});//" + cN);
+							System.out.println("codeMap.put(" + province + ",ms);//"
+									+ pN);
+						} else {
+							System.out.println("codeMap.put(" + province + ",ms);//"
+									+ pN);
+						}
+						city = -1;
+					}
+					province = p2;
+					pN = m2.group(3);
+				}
+				sum++;
+			}
+			System.out.println("codeMap.put(" + province + ",ms);//" + pN);
+			System.out.println("总数:" + sum);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+}
