@@ -1,0 +1,539 @@
+package com;
+
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class StringUtil {
+
+	public static Map<Integer, Map<Integer, int[]>> codeMap = null;
+
+	public static void main(String[] args) {
+		System.out.println(validCode("450324198404191649"));
+	}
+
+	/**
+	 * 验证身份证号码,支持港澳台
+	 */
+	public static boolean validCode(String code) {
+		if (code == null || code.equals(""))
+			return false;
+		int length = code.length();
+		String regex = "(\\d{6})(\\d{2})(\\d{2})(\\d{2})(\\d{3})";
+		if (length == 18)
+			regex = "(\\d{6})(\\d{4})(\\d{2})(\\d{2})(\\d{3})([0-9xX]{1})";
+		else if (length != 15)
+			return false;
+		Pattern p = Pattern.compile(regex);
+		Matcher m = p.matcher(code);
+		if (m.find()) {
+			String prefix = m.group(1);
+			if (validCounty(prefix)) {
+				int year = Integer.parseInt(m.group(2));
+				if (year < 100)
+					year += 1900;
+				int month = Integer.parseInt(m.group(3));
+				int day = Integer.parseInt(m.group(4));
+				if (validDate(year, month, day)) {
+					if (length == 18) {
+						int[] ws = new int[] { 1, 6, 3, 7, 9, 10, 5, 8, 4, 2 };
+						char[] cs = code.toCharArray();
+						int sum = 0;
+						for (int i = 0; i < 17; i++) {
+							sum += (cs[i] - 48) * ws[(i + 3) % 10];
+						}
+						int l = sum % 11, s = 12;
+						if (l < 2)
+							s = 1;
+						l = s - l;
+						String x = m.group(6).toUpperCase();
+						if (x.equals("X"))
+							return l == 10;
+						else
+							return x.charAt(0) - 48 == l;
+					} else
+						return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 验证身份证前6位
+	 */
+	public static boolean validCounty(String codePrefix) {
+		if (codeMap == null)
+			codeMap = initCodeMap();
+		int v = Integer.parseInt(codePrefix);
+		int province = v / 10000;
+		int city = v / 100 % 100;
+		int district = v % 100;
+		if (province == 81 || province == 82)
+			return city == 0 && district == 0;
+		Map<Integer, int[]> m = codeMap.get(province);
+		if (m != null) {
+			int[] arrays = m.get(city);
+			if (arrays != null) {
+				for (int i = 1, l = arrays.length; i < l; i = i + 2) {
+					int min = arrays[i];
+					int max = arrays[i + 1];
+					if (district >= min && district <= max)
+						return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 验证日期
+	 * 
+	 * @param year
+	 *            年
+	 * @param month
+	 *            月
+	 * @param day
+	 *            日
+	 */
+	public static boolean validDate(int year, int month, int day) {
+		if (month < 1 || month > 12)
+			return false;
+		Calendar c = Calendar.getInstance();
+		c.set(Calendar.YEAR, year);
+		c.set(Calendar.MONTH, month);
+		c.set(Calendar.DAY_OF_MONTH, 0);
+		int maxDate = c.get(Calendar.DAY_OF_MONTH);
+		return day >= 1 && day <= maxDate;
+	}
+
+	/**
+	 * 初始化省市县验证规则
+	 */
+	private static Map<Integer, Map<Integer, int[]>> initCodeMap() {
+		Map<Integer, Map<Integer, int[]>> codeMap = new HashMap<>();
+		Map<Integer, int[]> ms = new HashMap<>();
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 9, 11, 17 });// 市辖区
+		ms.put(2, new int[] { 0, 28, 29 });// 县
+		codeMap.put(11, ms);// 北京市
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 15 });// 市辖区
+		ms.put(2, new int[] { 0, 21, 21, 23, 23, 25, 25 });// 县
+		codeMap.put(12, ms);// 天津市
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 7, 8, 21, 21, 23, 33, 81, 81, 83, 85 });// 石家庄市
+		ms.put(2, new int[] { 0, 1, 5, 7, 8, 25, 25, 27, 27, 29, 30, 81, 81,
+				83, 83 });// 唐山市
+		ms.put(3, new int[] { 0, 1, 4, 21, 24 });// 秦皇岛市
+		ms.put(4, new int[] { 0, 1, 4, 6, 6, 21, 21, 23, 35, 81, 81 });// 邯郸市
+		ms.put(5, new int[] { 0, 1, 3, 21, 35, 81, 82 });// 邢台市
+		ms.put(6, new int[] { 0, 1, 4, 21, 22, 24, 29, 31, 32, 34, 34, 36, 38,
+				81, 84 });// 保定市
+		ms.put(7, new int[] { 0, 1, 3, 5, 6, 21, 33 });// 张家口市
+		ms.put(8, new int[] { 0, 1, 2, 4, 4, 21, 23, 25, 28 });// 承德市
+		ms.put(9, new int[] { 0, 1, 3, 21, 30, 81, 84 });// 沧州市
+		ms.put(10, new int[] { 0, 1, 3, 22, 26, 28, 28, 81, 82 });// 廊坊市
+		ms.put(11, new int[] { 0, 1, 2, 21, 28, 81, 82 });// 衡水市
+		codeMap.put(13, ms);// 河北省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 1, 5, 10, 21, 23, 81, 81 });// 太原市
+		ms.put(2, new int[] { 0, 1, 3, 11, 12, 21, 27 });// 大同市
+		ms.put(3, new int[] { 0, 1, 3, 11, 11, 21, 22 });// 阳泉市
+		ms.put(4, new int[] { 0, 1, 2, 11, 11, 21, 21, 23, 31 });// 长治市
+		ms.put(5, new int[] { 0, 1, 2, 21, 22, 24, 25, 81, 81 });// 晋城市
+		ms.put(6, new int[] { 0, 1, 3, 21, 24 });// 朔州市
+		ms.put(7, new int[] { 0, 1, 1, 22, 29, 81, 81 });// 晋中市
+		ms.put(8, new int[] { 0, 1, 2, 22, 30, 81, 82 });// 运城市
+		ms.put(9, new int[] { 0, 1, 2, 21, 32, 81, 81 });// 忻州市
+		ms.put(10, new int[] { 0, 1, 2, 21, 30, 32, 34, 81, 82 });// 临汾市
+		ms.put(11, new int[] { 0, 1, 2, 21, 30, 81, 82 });// 吕梁市
+		codeMap.put(14, ms);// 山西省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 21, 25 });// 呼和浩特市
+		ms.put(2, new int[] { 0, 1, 7, 21, 23 });// 包头市
+		ms.put(3, new int[] { 0, 1, 4 });// 乌海市
+		ms.put(4, new int[] { 0, 1, 4, 21, 26, 28, 30 });// 赤峰市
+		ms.put(5, new int[] { 0, 1, 2, 21, 26, 81, 81 });// 通辽市
+		ms.put(6, new int[] { 0, 2, 2, 21, 27 });// 鄂尔多斯市
+		ms.put(7, new int[] { 0, 1, 2, 21, 21, 23, 27, 81, 85 });// 呼伦贝尔市
+		ms.put(8, new int[] { 0, 2, 2, 21, 26 });// 市辖区
+		ms.put(9, new int[] { 0, 1, 2, 21, 29, 81, 81 });// 乌兰察布市
+		ms.put(22, new int[] { 0, 1, 2, 21, 22, 24, 24 });// 兴安盟
+		ms.put(25, new int[] { 0, 1, 2, 22, 31 });// 锡林郭勒盟
+		ms.put(26, new int[] { 0, -1, 31 });// 乌兰察布盟
+		ms.put(29, new int[] { 0, 21, 23 });// 阿拉善盟
+		codeMap.put(15, ms);// 内蒙古自治区
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 6, 11, 14, 22, 24, 81, 81 });// 沈阳市
+		ms.put(2, new int[] { 0, 1, 4, 11, 13, 24, 24, 81, 83 });// 大连市
+		ms.put(3, new int[] { 0, 1, 4, 11, 11, 21, 21, 81, 81 });// 鞍山市
+		ms.put(4, new int[] { 0, 1, 4, 11, 11, 21, 23 });// 抚顺市
+		ms.put(5, new int[] { 0, 1, 5, 21, 22 });// 本溪市
+		ms.put(6, new int[] { 0, 1, 4, 24, 24, 81, 82 });// 丹东市
+		ms.put(7, new int[] { 0, 1, 3, 11, 11, 26, 27, 81, 82 });// 锦州市
+		ms.put(8, new int[] { 0, 1, 4, 11, 11, 81, 82 });// 营口市
+		ms.put(9, new int[] { 0, 1, 5, 11, 11, 21, 22 });// 阜新市
+		ms.put(10, new int[] { 0, 1, 5, 11, 11, 21, 21, 81, 81 });// 辽阳市
+		ms.put(11, new int[] { 0, 1, 3, 21, 22 });// 盘锦市
+		ms.put(12, new int[] { 0, 1, 2, 4, 4, 21, 21, 23, 24, 81, 82 });// 铁岭市
+		ms.put(13, new int[] { 0, 1, 3, 21, 22, 24, 24, 81, 82 });// 朝阳市
+		ms.put(14, new int[] { 0, 1, 4, 21, 22, 81, 81 });// 葫芦岛市
+		codeMap.put(21, ms);// 辽宁省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 6, 12, 12, 22, 22, 81, 81, 83, 83 });// 长春市
+		ms.put(2, new int[] { 0, 1, 4, 11, 11, 21, 21, 81, 84 });// 吉林市
+		ms.put(3, new int[] { 0, 1, 3, 22, 23, 81, 82 });// 四平市
+		ms.put(4, new int[] { 0, 1, 3, 21, 22 });// 辽源市
+		ms.put(5, new int[] { 0, 1, 3, 21, 21, 23, 24, 81, 82 });// 通化市
+		ms.put(6, new int[] { 0, 1, 2, 21, 23, 25, 25, 81, 81 });// 白山市
+		ms.put(7, new int[] { 0, 1, 2, 21, 24 });// 松原市
+		ms.put(8, new int[] { 0, 1, 1, 82, 82 });// 白城市
+		ms.put(24, new int[] { 0, 1, 6, 24, 24, 26, 26 });// 延边朝鲜族自治州
+		codeMap.put(22, ms);// 吉林省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 8, 21, 21, 23, 29, 81, 84 });// 哈尔滨市
+		ms.put(2, new int[] { 0, 1, 7, 21, 21, 23, 25, 27, 27, 29, 31, 81, 81 });// 齐齐哈尔市
+		ms.put(3, new int[] { 0, 1, 7, 21, 21, 81, 82 });// 鸡西市
+		ms.put(4, new int[] { 0, 1, 7, 21, 22 });// 鹤岗市
+		ms.put(5, new int[] { 0, 1, 3, 5, 6, 21, 24 });// 双鸭山市
+		ms.put(6, new int[] { 0, 1, 6, 21, 24 });// 大庆市
+		ms.put(7, new int[] { 0, 1, 16, 22, 22, 81, 81 });// 伊春市
+		ms.put(8, new int[] { 0, 1, 5, 11, 11, 22, 22, 26, 26, 28, 28, 33, 33,
+				81, 82 });// 佳木斯市
+		ms.put(9, new int[] { 0, 1, 4, 21, 21 });// 七台河市
+		ms.put(10, new int[] { 0, 1, 5, 24, 25, 81, 81, 83, 85 });// 牡丹江市
+		ms.put(11, new int[] { 0, 1, 2, 21, 21, 23, 24, 81, 82 });// 黑河市
+		ms.put(12, new int[] { 0, 1, 2, 21, 26, 81, 83 });// 绥化市
+		ms.put(27, new int[] { 0, 21, 23 });// 大兴安岭地区
+		codeMap.put(23, ms);// 黑龙江省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 1, 3, 10, 12, 20 });// 市辖区
+		ms.put(2, new int[] { 0, 30, 30 });// 县
+		codeMap.put(31, ms);// 上海市
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 7, 11, 11, 13, 16, 25, 25 });// 南京市
+		ms.put(2, new int[] { 0, 1, 6, 11, 11, 81, 82 });// 无锡市
+		ms.put(3, new int[] { 0, 1, 5, 11, 11, 21, 24, 82, 82 });// 徐州市
+		ms.put(4, new int[] { 0, 1, 2, 4, 5, 11, 12, 82, 82 });// 常州市
+		ms.put(5, new int[] { 0, 1, 3, 5, 7, 81, 85 });// 苏州市
+		ms.put(6, new int[] { 0, 1, 2, 11, 11, 21, 21, 23, 23, 81, 84 });// 南通市
+		ms.put(7, new int[] { 0, 1, 1, 3, 3, 5, 6, 22, 24 });// 连云港市
+		ms.put(8, new int[] { 0, 1, 4, 11, 11, 26, 26, 29, 29, 31, 31 });// 淮安市
+		ms.put(9, new int[] { 0, 1, 3, 21, 25, 81, 82 });// 盐城市
+		ms.put(10,
+				new int[] { 0, 1, 3, 11, 11, 23, 23, 81, 81, 84, 84, 88, 88 });// 扬州市
+		ms.put(11, new int[] { 0, 1, 2, 11, 12, 81, 83 });// 镇江市
+		ms.put(12, new int[] { 0, 1, 3, 81, 84 });// 泰州市
+		ms.put(13, new int[] { 0, 1, 2, 21, 21, 23, 24 });// 宿迁市
+		codeMap.put(32, ms);// 江苏省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 6, 8, 10, 22, 22, 27, 27, 82, 83, 85, 85 });// 杭州市
+		ms.put(2, new int[] { 0, 1, 1, 3, 6, 11, 11, 25, 26, 81, 83 });// 宁波市
+		ms.put(3, new int[] { 0, 1, 4, 22, 22, 24, 24, 26, 29, 81, 82 });// 温州市
+		ms.put(4, new int[] { 0, 1, 2, 11, 11, 21, 21, 24, 24, 81, 83 });// 嘉兴市
+		ms.put(5, new int[] { 0, 1, 3, 21, 23 });// 湖州市
+		ms.put(6, new int[] { 0, 1, 2, 21, 21, 24, 24, 81, 83 });// 绍兴市
+		ms.put(7, new int[] { 0, 1, 1, 3, 3, 23, 23, 26, 27, 81, 84 });// 金华市
+		ms.put(8, new int[] { 0, 1, 3, 22, 22, 24, 25, 81, 81 });// 衢州市
+		ms.put(9, new int[] { 0, 1, 3, 21, 22 });// 舟山市
+		ms.put(10, new int[] { 0, 1, 4, 21, 24, 81, 82 });// 台州市
+		ms.put(11, new int[] { 0, 1, 2, 21, 21, 23, 27, 81, 81 });// 丽水市
+		codeMap.put(33, ms);// 浙江省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 4, 11, 11, 21, 23 });// 合肥市
+		ms.put(2, new int[] { 0, 1, 4, 7, 7, 21, 23 });// 芜湖市
+		ms.put(3, new int[] { 0, 2, 4, 11, 11, 21, 23 });// 市辖区
+		ms.put(4, new int[] { 0, 1, 6, 21, 21 });// 淮南市
+		ms.put(5, new int[] { 0, 1, 4, 21, 21 });// 马鞍山市
+		ms.put(6, new int[] { 0, 1, 4 });// 淮北市
+		ms.put(7, new int[] { 0, 1, 3, 11, 11, 21, 21 });// 铜陵市
+		ms.put(8, new int[] { 0, 1, 3, 11, 11, 22, 28, 81, 81 });// 安庆市
+		ms.put(10, new int[] { 0, 1, 4, 21, 24 });// 黄山市
+		ms.put(11, new int[] { 0, 1, 2, 22, 22, 24, 26, 81, 82 });// 滁州市
+		ms.put(12, new int[] { 0, 1, 4, 21, 22, 25, 26, 82, 82 });// 阜阳市
+		ms.put(13, new int[] { 0, 1, 2, 21, 24 });// 宿州市
+		ms.put(14, new int[] { 0, 1, 2, 21, 24 });// 巢湖市
+		ms.put(15, new int[] { 0, 1, 3, 21, 25 });// 六安市
+		ms.put(16, new int[] { 0, 1, 1, 21, 23 });// 亳州市
+		ms.put(17, new int[] { 0, 1, 2, 21, 23 });// 池州市
+		ms.put(18, new int[] { 0, 1, 2, 21, 25, 81, 81 });// 宣城市
+		codeMap.put(34, ms);// 安徽省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 11, 11, 21, 25, 28, 28, 81, 82 });// 福州市
+		ms.put(2, new int[] { 0, 1, 1, 3, 3, 5, 6, 11, 13 });// 厦门市
+		ms.put(3, new int[] { 0, 1, 5, 22, 22 });// 莆田市
+		ms.put(4, new int[] { 0, 1, 3, 21, 21, 23, 30, 81, 81 });// 三明市
+		ms.put(5, new int[] { 0, 1, 5, 21, 21, 24, 27, 81, 83 });// 泉州市
+		ms.put(6, new int[] { 0, 1, 1, 3, 3, 22, 29, 81, 81 });// 漳州市
+		ms.put(7, new int[] { 0, 1, 2, 21, 25, 81, 84 });// 南平市
+		ms.put(8, new int[] { 0, 1, 2, 21, 25, 81, 81 });// 龙岩市
+		ms.put(9, new int[] { 0, 1, 2, 21, 26, 81, 82 });// 宁德市
+		codeMap.put(35, ms);// 福建省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 11, 11, 21, 24 });// 南昌市
+		ms.put(2, new int[] { 0, 1, 3, 22, 22, 81, 81 });// 景德镇市
+		ms.put(3, new int[] { 0, 1, 2, 13, 13, 21, 23 });// 萍乡市
+		ms.put(4, new int[] { 0, 1, 3, 21, 21, 23, 30, 81, 81 });// 九江市
+		ms.put(5, new int[] { 0, 1, 2, 21, 21 });// 新余市
+		ms.put(6, new int[] { 0, 1, 2, 22, 22, 81, 81 });// 鹰潭市
+		ms.put(7, new int[] { 0, 1, 2, 21, 35, 81, 82 });// 赣州市
+		ms.put(8, new int[] { 0, 1, 3, 21, 30, 81, 81 });// 吉安市
+		ms.put(9, new int[] { 0, 1, 2, 21, 26, 81, 83 });// 宜春市
+		ms.put(10, new int[] { 0, 1, 2, 21, 30 });// 抚州市
+		ms.put(11, new int[] { 0, 1, 2, 21, 29, 81, 81 });// 上饶市
+		codeMap.put(36, ms);// 江西省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 12, 13, 24, 26, 81, 81 });// 济南市
+		ms.put(2, new int[] { 0, 1, 3, 5, 5, 11, 14, 81, 85 });// 青岛市
+		ms.put(3, new int[] { 0, 1, 6, 21, 22 });// 淄博市
+		ms.put(4, new int[] { 0, 1, 6, 81, 81 });// 枣庄市
+		ms.put(5, new int[] { 0, 1, 3, 21, 23 });// 东营市
+		ms.put(6, new int[] { 0, 1, 1, 11, 13, 34, 34, 81, 87 });// 烟台市
+		ms.put(7, new int[] { 0, 3, 5, 24, 25, 81, 86 });// 市辖区
+		ms.put(8, new int[] { 0, 1, 2, 11, 11, 26, 32, 81, 81, 83, 83 });// 济宁市
+		ms.put(9, new int[] { 0, 1, 3, 21, 21, 23, 23, 82, 83 });// 泰安市
+		ms.put(10, new int[] { 0, 1, 2, 81, 83 });// 威海市
+		ms.put(11, new int[] { 0, 1, 2, 21, 21 });// 日照市
+		ms.put(12, new int[] { 0, 1, 3 });// 莱芜市
+		ms.put(13, new int[] { 0, 2, 2, 11, 12, 22, 22, 24, 26, 28, 28 });// 市辖区
+		ms.put(14, new int[] { 0, 1, 2, 21, 28, 81, 82 });// 德州市
+		ms.put(15, new int[] { 0, 1, 2, 21, 22, 24, 26, 81, 81 });// 聊城市
+		ms.put(16, new int[] { 0, 1, 2, 21, 26 });// 滨州市
+		ms.put(17, new int[] { 0, 1, 2, 21, 24, 26, 28 });// 荷泽市
+		codeMap.put(37, ms);// 山东省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 6, 8, 8, 22, 22, 81, 85 });// 郑州市
+		ms.put(2, new int[] { 0, 1, 5, 11, 11, 21, 25 });// 开封市
+		ms.put(3, new int[] { 0, 1, 3, 5, 7, 22, 29, 81, 81 });// 洛阳市
+		ms.put(4, new int[] { 0, 1, 4, 11, 11, 21, 23, 25, 25, 81, 82 });// 平顶山市
+		ms.put(5, new int[] { 0, 1, 3, 5, 6, 22, 23, 26, 27, 81, 81 });// 安阳市
+		ms.put(6, new int[] { 0, 1, 3, 11, 11, 21, 22 });// 鹤壁市
+		ms.put(7, new int[] { 0, 1, 4, 11, 11, 21, 21, 24, 28, 81, 82 });// 新乡市
+		ms.put(8, new int[] { 0, 1, 4, 11, 11, 21, 23, 25, 25, 81, 83 });// 焦作市
+		ms.put(9, new int[] { 0, 1, 2, 22, 23, 26, 28 });// 濮阳市
+		ms.put(10, new int[] { 0, 1, 2, 23, 25, 81, 82 });// 许昌市
+		ms.put(11, new int[] { 0, 2, 2, 21, 23 });// 市辖区
+		ms.put(12, new int[] { 0, 1, 2, 22, 22, 24, 24, 81, 82 });// 三门峡市
+		ms.put(13, new int[] { 0, 1, 3, 21, 30, 81, 81 });// 南阳市
+		ms.put(14, new int[] { 0, 1, 3, 21, 26, 81, 81 });// 商丘市
+		ms.put(15, new int[] { 0, 1, 3, 21, 28 });// 信阳市
+		ms.put(16, new int[] { 0, 1, 2, 21, 28, 81, 81 });// 周口市
+		ms.put(17, new int[] { 0, 1, 2, 21, 29 });// 驻马店市
+		codeMap.put(41, ms);// 河南省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 7, 11, 17 });// 武汉市
+		ms.put(2, new int[] { 0, 1, 5, 22, 22, 81, 81 });// 黄石市
+		ms.put(3, new int[] { 0, 1, 3, 23, 25, 81, 81 });// 十堰市
+		ms.put(5, new int[] { 0, 1, 6, 25, 26, 28, 29, 81, 83 });// 宜昌市
+		ms.put(6, new int[] { 0, 1, 2, 6, 7, 24, 26, 82, 84 });// 襄樊市
+		ms.put(7, new int[] { 0, 1, 4 });// 鄂州市
+		ms.put(8, new int[] { 0, 1, 2, 4, 4, 21, 22, 81, 81 });// 荆门市
+		ms.put(9, new int[] { 0, 1, 2, 21, 23, 81, 82, 84, 84 });// 孝感市
+		ms.put(10, new int[] { 0, 1, 3, 22, 24, 81, 81, 83, 83, 87, 87 });// 荆州市
+		ms.put(11, new int[] { 0, 1, 2, 21, 24, 27, 27, 81, 82 });// 黄冈市
+		ms.put(12, new int[] { 0, 1, 2, 21, 24, 81, 81 });// 咸宁市
+		ms.put(13, new int[] { 0, 1, 2, 81, 81 });// 随州市
+		ms.put(28, new int[] { 0, 1, 2, 22, 23, 25, 28 });// 恩施土家族苗族自治州
+		ms.put(90, new int[] { 0, 4, 6, 21, 21 });// 省直辖行政单位
+		codeMap.put(42, ms);// 湖北省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 11, 11, 21, 22, 24, 24, 81, 81 });// 长沙市
+		ms.put(2, new int[] { 0, 1, 4, 11, 11, 21, 21, 23, 25 });// 株洲市
+		ms.put(3, new int[] { 0, 1, 2, 4, 4, 21, 21, 81, 82 });// 湘潭市
+		ms.put(4, new int[] { 0, 1, 1, 5, 8, 12, 12, 21, 24, 26, 26, 81, 82 });// 衡阳市
+		ms.put(5, new int[] { 0, 1, 3, 11, 11, 21, 25, 27, 29, 81, 81 });// 邵阳市
+		ms.put(6, new int[] { 0, 1, 3, 11, 11, 21, 21, 23, 24, 26, 26, 81, 82 });// 岳阳市
+		ms.put(7, new int[] { 0, 1, 3, 21, 26, 81, 81 });// 常德市
+		ms.put(8, new int[] { 0, 1, 2, 11, 11, 21, 22 });// 张家界市
+		ms.put(9, new int[] { 0, 1, 3, 21, 23, 81, 81 });// 益阳市
+		ms.put(10, new int[] { 0, 1, 3, 21, 28, 81, 81 });// 郴州市
+		ms.put(11, new int[] { 0, 1, 3, 21, 29 });// 永州市
+		ms.put(12, new int[] { 0, 1, 2, 21, 23, 25, 30, 81, 81 });// 怀化市
+		ms.put(13, new int[] { 0, 1, 2, 21, 22, 81, 82 });// 娄底市
+		ms.put(31, new int[] { 0, 1, 1, 22, 27, 30, 30 });// 湘西土家族苗族自治州
+		codeMap.put(43, ms);// null
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 7, 11, 14, 83, 84 });// 广州市
+		ms.put(2, new int[] { 0, 1, 3, 21, 22, 24, 24, 29, 29, 32, 33, 81, 82 });// 韶关市
+		ms.put(3, new int[] { 0, 1, 1, 3, 8 });// 深圳市
+		ms.put(4, new int[] { 0, 1, 4 });// 珠海市
+		ms.put(5, new int[] { 0, 1, 1, 7, 7, 11, 15, 23, 23 });// 汕头市
+		ms.put(6, new int[] { 0, 1, 1, 4, 8 });// 佛山市
+		ms.put(7, new int[] { 0, 1, 1, 3, 5, 81, 81, 83, 85 });// 江门市
+		ms.put(8, new int[] { 0, 1, 4, 11, 11, 23, 23, 25, 25, 81, 83 });// 湛江市
+		ms.put(9, new int[] { 0, 1, 3, 23, 23, 81, 83 });// 茂名市
+		ms.put(12, new int[] { 0, 1, 3, 23, 26, 83, 84 });// 肇庆市
+		ms.put(13, new int[] { 0, 1, 3, 22, 24 });// 惠州市
+		ms.put(14, new int[] { 0, 1, 2, 21, 24, 26, 27, 81, 81 });// 梅州市
+		ms.put(15, new int[] { 0, 1, 2, 21, 21, 23, 23, 81, 81 });// 汕尾市
+		ms.put(16, new int[] { 0, 1, 2, 21, 25 });// 河源市
+		ms.put(17, new int[] { 0, 1, 2, 21, 21, 23, 23, 81, 81 });// 阳江市
+		ms.put(18, new int[] { 0, 1, 2, 21, 21, 23, 23, 25, 27, 81, 82 });// 清远市
+		ms.put(19, new int[] { 0, -1, 82 });// 东莞市
+		ms.put(20, new int[] { 0, -1, 82 });// 中山市
+		ms.put(51, new int[] { 0, 1, 2, 21, 22 });// 潮州市
+		ms.put(52, new int[] { 0, 1, 2, 21, 22, 24, 24, 81, 81 });// 揭阳市
+		ms.put(53, new int[] { 0, 1, 2, 21, 23, 81, 81 });// 云浮市
+		codeMap.put(44, ms);// 广东省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 6, 21, 27 });// 南宁市
+		ms.put(2, new int[] { 0, 1, 5, 21, 26 });// 柳州市
+		ms.put(3, new int[] { 0, 1, 5, 11, 11, 21, 32 });// 桂林市
+		ms.put(4, new int[] { 0, 1, 1, 3, 5, 21, 23, 81, 81 });// 梧州市
+		ms.put(5, new int[] { 0, 1, 3, 12, 12, 21, 21 });// 北海市
+		ms.put(6, new int[] { 0, 1, 3, 21, 21, 81, 81 });// 防城港市
+		ms.put(7, new int[] { 0, 1, 3, 21, 22 });// 钦州市
+		ms.put(8, new int[] { 0, 1, 4, 21, 21, 81, 81 });// 贵港市
+		ms.put(9, new int[] { 0, 1, 2, 21, 24, 81, 81 });// 玉林市
+		ms.put(10, new int[] { 0, 1, 2, 21, 31 });// 百色市
+		ms.put(11, new int[] { 0, 1, 2, 21, 23 });// 贺州市
+		ms.put(12, new int[] { 0, 1, 2, 21, 24, 26, 29, 81, 81 });// 河池市
+		ms.put(13, new int[] { 0, 1, 2, 21, 24, 81, 81 });// 来宾市
+		ms.put(14, new int[] { 0, 1, 2, 21, 25, 81, 81 });// 崇左市
+		codeMap.put(45, ms);// 广西壮族自治区
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 1, 5, 8 });// 海口市
+		ms.put(2, new int[] { 0, 1, 1 });// 三亚市
+		ms.put(90, new int[] { 0, 1, 2, 5, 7, 25, 28, 30, 31, 33, 39 });// 省直辖县级行政单位
+		codeMap.put(46, ms);// 海南省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 1, 3, 15 });// 市辖区
+		ms.put(2, new int[] { 0, 23, 38, 40, 43 });// 县
+		ms.put(3, new int[] { 0, 81, 84 });// 市
+		codeMap.put(50, ms);// 重庆市
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 1, 4, 8, 12, 15, 21, 22, 29, 29, 31, 32,
+				81, 84 });// 成都市
+		ms.put(3, new int[] { 0, 1, 4, 11, 11, 21, 22 });// 自贡市
+		ms.put(4, new int[] { 0, 1, 3, 11, 11, 21, 22 });// 攀枝花市
+		ms.put(5, new int[] { 0, 1, 4, 21, 22, 24, 24 });// 泸州市
+		ms.put(6, new int[] { 0, 1, 1, 3, 3, 23, 23, 26, 26, 81, 81, 83, 83 });// 德阳市
+		ms.put(7, new int[] { 0, 1, 1, 4, 4, 22, 27, 81, 81 });// 绵阳市
+		ms.put(8, new int[] { 0, 1, 2, 11, 12, 21, 24 });// 广元市
+		ms.put(9, new int[] { 0, 1, 1, 3, 4, 21, 23 });// 遂宁市
+		ms.put(10, new int[] { 0, 1, 2, 11, 11, 24, 25, 28, 28 });// 内江市
+		ms.put(11, new int[] { 0, 1, 2, 11, 13, 23, 24, 26, 26, 29, 29, 32, 33,
+				81, 81 });// 乐山市
+		ms.put(13, new int[] { 0, 1, 4, 21, 25 });// 南充市
+		ms.put(14, new int[] { 0, 1, 2, 21, 25 });// 眉山市
+		ms.put(15, new int[] { 0, 1, 2, 21, 26, 28, 29 });// 宜宾市
+		ms.put(16, new int[] { 0, 1, 2, 21, 23, 81, 81 });// 广安市
+		ms.put(17, new int[] { 0, 1, 2, 21, 25, 81, 81 });// 达州市
+		ms.put(18, new int[] { 0, 1, 2, 21, 27 });// 雅安市
+		ms.put(19, new int[] { 0, 1, 2, 21, 23 });// 巴中市
+		ms.put(20, new int[] { 0, 1, 2, 21, 22, 81, 81 });// 资阳市
+		ms.put(32, new int[] { 0, 21, 33 });// 阿坝藏族羌族自治州
+		ms.put(33, new int[] { 0, 21, 38 });// 甘孜藏族自治州
+		ms.put(34, new int[] { 0, 1, 1, 22, 37 });// 凉山彝族自治州
+		codeMap.put(51, ms);// 四川省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 3, 11, 14, 21, 23, 81, 81 });// 贵阳市
+		ms.put(2, new int[] { 0, 1, 1, 3, 3, 21, 22 });// 六盘水市
+		ms.put(3, new int[] { 0, 1, 3, 21, 24, 27, 30, 81, 82 });// 遵义市
+		ms.put(4, new int[] { 0, 1, 2, 21, 25 });// 安顺市
+		ms.put(22, new int[] { 0, 1, 1, 22, 30 });// 铜仁地区
+		ms.put(23, new int[] { 0, 1, 1, 22, 25, 27, 28 });// 黔西南布依族苗族自治州
+		ms.put(24, new int[] { 0, 1, 1, 22, 28 });// 毕节地区
+		ms.put(26, new int[] { 0, 1, 1, 22, 36 });// 黔东南苗族侗族自治州
+		ms.put(27, new int[] { 0, 1, 2, 22, 23, 25, 32 });// 黔南布依族苗族自治州
+		codeMap.put(52, ms);// 贵州省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 3, 11, 13, 21, 22, 24, 29, 81, 81 });// 昆明市
+		ms.put(3, new int[] { 0, 1, 2, 21, 26, 28, 28, 81, 81 });// 曲靖市
+		ms.put(4, new int[] { 0, 1, 2, 21, 28 });// 玉溪市
+		ms.put(5, new int[] { 0, 1, 2, 21, 24 });// 保山市
+		ms.put(6, new int[] { 0, 1, 2, 21, 30 });// 昭通市
+		ms.put(7, new int[] { 0, 1, 2, 21, 24 });// 丽江市
+		ms.put(8, new int[] { 0, 1, 2, 21, 29 });// 思茅市
+		ms.put(9, new int[] { 0, 1, 2, 21, 27 });// 临沧市
+		ms.put(23, new int[] { 0, 1, 1, 22, 29, 31, 31 });// 楚雄彝族自治州
+		ms.put(25, new int[] { 0, 1, 2, 22, 32 });// 红河哈尼族彝族自治州
+		ms.put(26, new int[] { 0, 21, 28 });// 文山壮族苗族自治州
+		ms.put(28, new int[] { 0, 1, 1, 22, 23 });// 西双版纳傣族自治州
+		ms.put(29, new int[] { 0, 1, 1, 23, 32 });// 大理白族自治州
+		ms.put(31, new int[] { 0, 2, 2, 22, 24 });// 德宏傣族景颇族自治州
+		ms.put(33, new int[] { 0, 23, 25 });// 泸水县
+		ms.put(34, new int[] { 0, 21, 22 });// 迪庆藏族自治州
+		codeMap.put(53, ms);// 云南省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 2, 21, 27 });// 拉萨市
+		ms.put(21, new int[] { 0, 21, 29, 32, 33 });// 昌都地区
+		ms.put(22, new int[] { 0, 21, 29, 31, 33 });// 山南地区
+		ms.put(23, new int[] { 0, 1, 1, 22, 38 });// 日喀则地区
+		ms.put(24, new int[] { 0, 21, 30 });// 那曲地区
+		ms.put(25, new int[] { 0, 21, 22, 24, 27 });// 阿里地区
+		ms.put(26, new int[] { 0, 21, 27 });// 林芝地区
+		codeMap.put(54, ms);// 西藏自治区
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 4, 12, 16, 22, 22, 24, 26 });// 西安市
+		ms.put(2, new int[] { 0, 1, 4, 22, 22 });// 铜川市
+		ms.put(3, new int[] { 0, 1, 4, 22, 24, 26, 31 });// 宝鸡市
+		ms.put(4, new int[] { 0, 1, 4, 22, 31, 81, 81 });// 咸阳市
+		ms.put(5, new int[] { 0, 1, 2, 21, 28, 81, 82 });// 渭南市
+		ms.put(6, new int[] { 0, 1, 2, 21, 23, 25, 32 });// 延安市
+		ms.put(7, new int[] { 0, 1, 2, 21, 30 });// 汉中市
+		ms.put(8, new int[] { 0, 21, 31 });// 市辖区
+		ms.put(9, new int[] { 0, 1, 2, 21, 29 });// 安康市
+		ms.put(10, new int[] { 0, 1, 2, 21, 25 });// 商洛市
+		codeMap.put(61, ms);// 陕西省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 11, 11, 21, 22 });// 兰州市
+		ms.put(2, new int[] { 0, 1, 1 });// 嘉峪关市
+		ms.put(3, new int[] { 0, 1, 2, 21, 21 });// 金昌市
+		ms.put(4, new int[] { 0, 1, 3, 21, 23 });// 白银市
+		ms.put(5, new int[] { 0, 1, 3, 21, 25 });// 天水市
+		ms.put(6, new int[] { 0, 1, 2, 21, 23 });// 武威市
+		ms.put(7, new int[] { 0, 1, 2, 21, 25 });// 张掖市
+		ms.put(8, new int[] { 0, 1, 2, 21, 26 });// 平凉市
+		ms.put(9, new int[] { 0, 1, 2, 21, 24, 81, 82 });// 酒泉市
+		ms.put(10, new int[] { 0, 1, 2, 21, 27 });// 庆阳市
+		ms.put(11, new int[] { 0, 1, 2, 21, 23, 25, 26 });// 定西市
+		ms.put(26, new int[] { 0, 21, 21, 23, 30 });// 陇南地区
+		ms.put(29, new int[] { 0, 1, 1, 21, 27 });// 临夏回族自治州
+		ms.put(30, new int[] { 0, 1, 1, 21, 27 });// 甘南藏族自治州
+		codeMap.put(62, ms);// 甘肃省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 5, 21, 21 });// 西宁市
+		ms.put(21, new int[] { 0, 21, 23, 26, 28 });// 海东地区
+		ms.put(22, new int[] { 0, 21, 24 });// 海北藏族自治州
+		ms.put(23, new int[] { 0, 21, 24 });// 黄南藏族自治州
+		ms.put(25, new int[] { 0, 21, 25 });// 海南藏族自治州
+		ms.put(26, new int[] { 0, 21, 26 });// 果洛藏族自治州
+		ms.put(27, new int[] { 0, 21, 26 });// 玉树藏族自治州
+		ms.put(28, new int[] { 0, 1, 2, 21, 23 });// 海西蒙古族藏族自治州
+		codeMap.put(63, ms);// 青海省
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 1, 4, 6, 22, 22, 81, 81 });// 银川市
+		ms.put(2, new int[] { 0, 1, 2, 5, 5, 21, 21 });// 石嘴山市
+		ms.put(3, new int[] { 0, 1, 2, 23, 24, 81, 81 });// 吴忠市
+		ms.put(4, new int[] { 0, 1, 2, 22, 25 });// 固原市
+		ms.put(5, new int[] { 0, 1, 2, 21, 22 });// 中卫市
+		codeMap.put(64, ms);// 宁夏回族自治区
+		ms = new HashMap<>();
+		ms.put(1, new int[] { 0, 1, 8, 21, 21 });// 乌鲁木齐市
+		ms.put(2, new int[] { 0, 1, 5 });// 克拉玛依市
+		ms.put(21, new int[] { 0, 1, 1, 23, 23 });// 吐鲁番地区
+		ms.put(22, new int[] { 0, 1, 1, 22, 23 });// 哈密地区
+		ms.put(23, new int[] { 0, 1, 3, 23, 25, 27, 28 });// 昌吉回族自治州
+		ms.put(27, new int[] { 0, 1, 1, 22, 23 });// 博尔塔拉蒙古自治州
+		ms.put(28, new int[] { 0, 22, 25, 27, 29 });// 库尔勒市
+		ms.put(29, new int[] { 0, 1, 1, 22, 29 });// 阿克苏地区
+		ms.put(30, new int[] { 0, 1, 1, 22, 24 });// 克孜勒苏柯尔克孜自治州
+		ms.put(31, new int[] { 0, 1, 1, 21, 31 });// 喀什地区
+		ms.put(32, new int[] { 0, 1, 1, 21, 27 });// 和田地区
+		ms.put(40, new int[] { 0, 2, 3, 21, 28 });// 伊犁哈萨克自治州
+		ms.put(42, new int[] { 0, 1, 2, 21, 21, 23, 26 });// 塔城地区
+		ms.put(43, new int[] { 0, 1, 1, 21, 26 });// 阿勒泰地区
+		ms.put(90, new int[] { 0, 1, 4 });// 省直辖行政单位
+		codeMap.put(65, ms);// ***维吾尔自治区
+		ms = new HashMap<>();
+		ms.put(0, new int[] { 0, 0, 1 });// 省直辖行政单位
+		codeMap.put(71, ms);// 台湾省
+		// codeMap.put(81, null);// 香港特别行政区
+		// codeMap.put(82, null);// 澳门特别行政区
+		return codeMap;
+	}
+}
